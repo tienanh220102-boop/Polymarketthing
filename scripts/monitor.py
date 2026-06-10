@@ -63,7 +63,7 @@ def run_once() -> int:
 
     print(f"[POLL] Got {len(events)} markets")
     alerts_sent = 0
-    is_first_run = store.get_snapshot_count() == 0
+    is_first_run = store.get_config("startup_notified") is None
 
     for event in events:
         market = polymarket.build_market_dict(event)
@@ -114,6 +114,7 @@ def run_once() -> int:
             f"Se gui canh bao khi phat hien bien dong."
         )
         alert.send_telegram(msg)
+        store.set_config("startup_notified", "1")
         print("[START] Startup notification sent to Telegram")
 
     return alerts_sent

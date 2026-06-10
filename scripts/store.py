@@ -52,6 +52,11 @@ CREATE TABLE IF NOT EXISTS seen_trades (
     event_id   TEXT,
     seen_at    TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS config (
+    key    TEXT PRIMARY KEY,
+    value  TEXT
+);
 """
 
 
@@ -143,13 +148,18 @@ def cleanup_old_snapshots(keep_days: int = 7) -> int:
         return cur.rowcount
 
 
-def get_snapshot_count() -> int:
+def get_config(key: str) -> str | None:
     try:
         with _connect() as conn:
-            row = conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()
-        return row[0] if row else 0
+            row = conn.execute("SELECT value FROM config WHERE key = ?", (key,)).fetchone()
+        return row[0] if row else None
     except Exception:
-        return 0
+        return None
+
+
+def set_config(key: str, value: str) -> None:
+    with _connect() as conn:
+        conn.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value))
 
 
 def is_trade_seen(trade_id: str) -> bool:
