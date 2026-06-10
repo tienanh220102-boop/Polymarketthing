@@ -46,6 +46,7 @@ PRICE_THRESHOLD = float(os.environ.get("PRICE_CHANGE_THRESHOLD", "0.10"))
 MIN_LIQUIDITY = float(os.environ.get("MIN_LIQUIDITY", "10000"))
 TOP_N = int(os.environ.get("TOP_N_MARKETS", "20"))
 COOLDOWN_HOURS = int(os.environ.get("ALERT_COOLDOWN_HOURS", "2"))
+MIN_TRADE_SIZE = float(os.environ.get("MIN_TRADE_SIZE", "5000"))
 
 
 # ── Core monitoring logic ────────────────────────────────────────────────────
@@ -87,6 +88,21 @@ def run_once() -> int:
                 alerts_sent += 1
 
             store.save_snapshot(market, outcome)
+
+        # V2: large single-trade detection via CLOB API
+        if MIN_TRADE_SIZE > 0 and market.get("condition_id"):
+            trades = polymarket.fetch_large_trades(market["condition_id"], MIN_TRADE_SIZE)
+            time.sleep(0.2)
+            for trade in trades:
+                trade_id = str(trade.get("id", ""))
+                if not trade_id or store.is_trade_seen(trade_id):
+                    continue
+                outcome_name = polymarket.get_outcome_name(
+                    market, str(trade.get("asset_id", ""))
+                )
+                alert.send_trade_alert(market, trade, outcome_name)
+                store.mark_trade_seen(trade_id, market["event_id"])
+                alerts_sent += 1
 
     return alerts_sent
 
@@ -179,7 +195,8 @@ def run_loop() -> None:
         # Cleanup old snapshots every ~1000 cycles (~1 week at 10min interval)
         if cycle % 1000 == 0:
             deleted = store.cleanup_old_snapshots(keep_days=7)
-            print(f"[CLEANUP] Deleted {deleted} old snapshot rows")
+            deleted_t = store.cleanup_old_seen_trades(keep_hours=24)
+            print(f"[CLEANUP] Deleted {deleted} snapshots, {deleted_t} seen trades")
 
         try:
             time.sleep(POLL_INTERVAL_SEC)

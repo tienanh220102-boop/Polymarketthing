@@ -46,6 +46,12 @@ CREATE TABLE IF NOT EXISTS alert_log (
 );
 CREATE INDEX IF NOT EXISTS idx_alert
     ON alert_log(event_id, outcome, alerted_at DESC);
+
+CREATE TABLE IF NOT EXISTS seen_trades (
+    trade_id   TEXT PRIMARY KEY,
+    event_id   TEXT,
+    seen_at    TEXT DEFAULT (datetime('now'))
+);
 """
 
 
@@ -134,4 +140,29 @@ def cleanup_old_snapshots(keep_days: int = 7) -> int:
     )
     with _connect() as conn:
         cur = conn.execute("DELETE FROM snapshots WHERE snapped_at < ?", (cutoff,))
+        return cur.rowcount
+
+
+def is_trade_seen(trade_id: str) -> bool:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM seen_trades WHERE trade_id = ? LIMIT 1", (trade_id,)
+        ).fetchone()
+    return row is not None
+
+
+def mark_trade_seen(trade_id: str, event_id: str) -> None:
+    with _connect() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO seen_trades (trade_id, event_id) VALUES (?, ?)",
+            (trade_id, event_id),
+        )
+
+
+def cleanup_old_seen_trades(keep_hours: int = 24) -> int:
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=keep_hours)).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+    with _connect() as conn:
+        cur = conn.execute("DELETE FROM seen_trades WHERE seen_at < ?", (cutoff,))
         return cur.rowcount

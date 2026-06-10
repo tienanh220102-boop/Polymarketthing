@@ -17,6 +17,7 @@ from . import http
 
 GAMMA_EVENTS_URL = "https://gamma-api.polymarket.com/events"
 GAMMA_SEARCH_URL = "https://gamma-api.polymarket.com/public-search"
+CLOB_TRADES_URL = "https://clob.polymarket.com/trades"
 
 # Sequential search queries — run one at a time with pacing to avoid IP blocks.
 # 5 queries × 3 pages × 5 events = up to 75 events. Enough for top 20.
@@ -137,6 +138,41 @@ def _fetch_events_search() -> list[dict]:
     return list(all_events.values())
 
 
+def _parse_clob_token_ids(market: dict) -> list[str]:
+    raw = market.get("clobTokenIds") or market.get("clob_token_ids") or []
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return []
+    return [str(t) for t in (raw or [])]
+
+
+def fetch_large_trades(condition_id: str, min_size: float = 5000.0) -> list[dict]:
+    """Fetch recent trades from CLOB API, return only those >= min_size USDC."""
+    if not condition_id:
+        return []
+    params = {"market": condition_id, "limit": "50"}
+    url = f"{CLOB_TRADES_URL}?{urlencode(params)}"
+    try:
+        data = http.get(url, timeout=15, retries=1)
+        trades = data if isinstance(data, list) else (data.get("data") or [])
+        return [t for t in trades if _safe_float(t.get("size")) >= min_size]
+    except Exception:
+        return []
+
+
+def get_outcome_name(market: dict, asset_id: str) -> str:
+    """Map CLOB asset_id to a human-readable outcome name."""
+    token_ids = market.get("clob_token_ids") or []
+    outcome_names = market.get("outcome_names") or []
+    try:
+        idx = token_ids.index(str(asset_id))
+        return outcome_names[idx] if idx < len(outcome_names) else str(asset_id)[:12]
+    except (ValueError, IndexError):
+        return str(asset_id)[:12]
+
+
 def _parse_outcomes(market: dict) -> list[tuple[str, float]]:
     """Parse outcome names and prices from a market dict."""
     try:
@@ -231,10 +267,16 @@ def build_market_dict(event: dict) -> dict:
     if top.get("endDate"):
         end_date = str(top["endDate"])[:10]
 
-    outcomes = [
-        {"name": name, "price": price}
-        for name, price in _parse_outcomes(top)
-    ]
+    parsed = _parse_outcomes(top)
+    outcomes = [{"name": name, "price": price} for name, price in parsed]
+
+    try:
+        outcomes_raw = top.get("outcomes") or []
+        if isinstance(outcomes_raw, str):
+            outcomes_raw = json.loads(outcomes_raw)
+    except (json.JSONDecodeError, TypeError):
+        outcomes_raw = []
+    outcome_names = [str(o) for o in outcomes_raw]
 
     return {
         "event_id": event_id,
@@ -245,4 +287,7 @@ def build_market_dict(event: dict) -> dict:
         "liquidity": _safe_float(event.get("liquidity")),
         "end_date": end_date,
         "outcomes": outcomes,
+        "condition_id": top.get("conditionId", ""),
+        "clob_token_ids": _parse_clob_token_ids(top),
+        "outcome_names": outcome_names,
     }

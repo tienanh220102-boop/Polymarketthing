@@ -62,6 +62,35 @@ def format_message(market: dict, outcome: dict, old_price: float, alert_type: st
     return "\n".join(lines)
 
 
+def format_trade_alert(market: dict, trade: dict, outcome_name: str) -> str:
+    """Build HTML Telegram message for a large single trade."""
+    title = _esc(market.get("title", ""))
+    question = _esc(market.get("question", ""))
+    size = float(trade.get("size") or 0)
+    price = float(trade.get("price") or 0)
+    side = str(trade.get("side") or "?").upper()
+    outcome_name = _esc(outcome_name)
+    url = market.get("url", "")
+    vol = market.get("volume24hr") or 0
+
+    lines = [
+        "POLYMARKET - LARGE BET DETECTED",
+        "",
+        f"<b>{title}</b>",
+    ]
+    if question and question != title:
+        lines.append(f"<i>{question}</i>")
+    lines += [
+        "",
+        f"Bet: <b>{side} {outcome_name}</b>  @{price * 100:.0f}%",
+        f"Size: <b>${size:,.0f}</b>",
+        f"Volume 24h: <b>${vol:,.0f}</b>",
+    ]
+    if url:
+        lines.append(f"\n<a href=\"{url}\">Xem tren Polymarket</a>")
+    return "\n".join(lines)
+
+
 def send_telegram(text: str) -> bool:
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
@@ -82,6 +111,20 @@ def log_to_file(text: str) -> None:
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(LOG_PATH, "a", encoding="utf-8") as f:
         f.write(f"\n[{ts}]\n{text}\n{'=' * 60}\n")
+
+
+def send_trade_alert(market: dict, trade: dict, outcome_name: str) -> None:
+    """Send large-trade alert to Telegram and log to file."""
+    text = format_trade_alert(market, trade, outcome_name)
+    ok = send_telegram(text)
+    status = "OK" if ok else "TELEGRAM_FAIL"
+    log_to_file(text)
+    size = float(trade.get("size") or 0)
+    side = str(trade.get("side") or "?").upper()
+    print(
+        f"[TRADE {status}] {market['title'][:50]} | "
+        f"{side} {outcome_name[:20]} | ${size:,.0f}"
+    )
 
 
 def send_alert(market: dict, outcome: dict, old_price: float, alert_type: str) -> None:
