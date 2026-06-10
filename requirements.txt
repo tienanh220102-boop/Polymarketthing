@@ -1,0 +1,2 @@
+# Zero external dependencies - uses Python stdlib only (3.10+)
+# python-dotenv  # optional, .env loading is built into monitor.py
