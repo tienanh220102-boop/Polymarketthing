@@ -57,7 +57,7 @@ def format_message(market: dict, outcome: dict, old_price: float, alert_type: st
         lines.append(f"Closes: <b>{end_date}</b>")
 
     if url:
-        lines.append(f"\n<a href=\"{url}\">Xem tren Polymarket</a>")
+        lines.append(f"\n<a href=\"{url}\">Xem trên Polymarket</a>")
 
     return "\n".join(lines)
 
@@ -87,7 +87,7 @@ def format_trade_alert(market: dict, trade: dict, outcome_name: str) -> str:
         f"Volume 24h: <b>${vol:,.0f}</b>",
     ]
     if url:
-        lines.append(f"\n<a href=\"{url}\">Xem tren Polymarket</a>")
+        lines.append(f"\n<a href=\"{url}\">Xem trên Polymarket</a>")
     return "\n".join(lines)
 
 

@@ -107,11 +107,11 @@ def run_once() -> int:
 
     if is_first_run and events:
         msg = (
-            f"Polymarket Monitor da khoi dong!\n"
-            f"Dang theo doi {len(events)} markets\n"
-            f"Nguong canh bao: >= {PRICE_THRESHOLD * 100:.0f}% thay doi odds\n"
-            f"Lenh bet don le: >= ${MIN_TRADE_SIZE:,.0f}\n"
-            f"Se gui canh bao khi phat hien bien dong."
+            f"Polymarket Monitor đã khởi động!\n"
+            f"Đang theo dõi {len(events)} markets\n"
+            f"Ngưỡng cảnh báo: >= {PRICE_THRESHOLD * 100:.0f}% thay đổi odds\n"
+            f"Lệnh bet đơn lẻ: >= ${MIN_TRADE_SIZE:,.0f}\n"
+            f"Sẽ gửi cảnh báo khi phát hiện biến động."
         )
         alert.send_telegram(msg)
         store.set_config("startup_notified", "1")
@@ -169,7 +169,7 @@ def cmd_diagnose() -> None:
 
     if token and chat_id:
         print("\n[TEST] Sending Telegram test message...")
-        ok = alert.send_telegram("Polymarket Monitor: ket noi Telegram thanh cong!")
+        ok = alert.send_telegram("Polymarket Monitor: kết nối Telegram thành công!")
         print(f"  {'OK - Kiem tra hop thoai Telegram cua ban' if ok else 'ERROR - Gui that bai (kiem tra lai token + chat_id)'}")
     else:
         print("\n[SKIP] Telegram test skipped (token/chat_id chua set)")
