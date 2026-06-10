@@ -143,6 +143,15 @@ def cleanup_old_snapshots(keep_days: int = 7) -> int:
         return cur.rowcount
 
 
+def get_snapshot_count() -> int:
+    try:
+        with _connect() as conn:
+            row = conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()
+        return row[0] if row else 0
+    except Exception:
+        return 0
+
+
 def is_trade_seen(trade_id: str) -> bool:
     with _connect() as conn:
         row = conn.execute(

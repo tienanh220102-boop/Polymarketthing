@@ -63,6 +63,7 @@ def run_once() -> int:
 
     print(f"[POLL] Got {len(events)} markets")
     alerts_sent = 0
+    is_first_run = store.get_snapshot_count() == 0
 
     for event in events:
         market = polymarket.build_market_dict(event)
@@ -103,6 +104,17 @@ def run_once() -> int:
                 alert.send_trade_alert(market, trade, outcome_name)
                 store.mark_trade_seen(trade_id, market["event_id"])
                 alerts_sent += 1
+
+    if is_first_run and events:
+        msg = (
+            f"Polymarket Monitor da khoi dong!\n"
+            f"Dang theo doi {len(events)} markets\n"
+            f"Nguong canh bao: >= {PRICE_THRESHOLD * 100:.0f}% thay doi odds\n"
+            f"Lenh bet don le: >= ${MIN_TRADE_SIZE:,.0f}\n"
+            f"Se gui canh bao khi phat hien bien dong."
+        )
+        alert.send_telegram(msg)
+        print("[START] Startup notification sent to Telegram")
 
     return alerts_sent
 
@@ -153,6 +165,13 @@ def cmd_diagnose() -> None:
     print(f"  Alert cooldown : {COOLDOWN_HOURS}h")
     print(f"  DB path        : {store.DB_PATH}")
     print(f"  Alert log      : {alert.LOG_PATH}")
+
+    if token and chat_id:
+        print("\n[TEST] Sending Telegram test message...")
+        ok = alert.send_telegram("Polymarket Monitor: ket noi Telegram thanh cong!")
+        print(f"  {'OK - Kiem tra hop thoai Telegram cua ban' if ok else 'ERROR - Gui that bai (kiem tra lai token + chat_id)'}")
+    else:
+        print("\n[SKIP] Telegram test skipped (token/chat_id chua set)")
 
     print("\n[TEST] Calling Gamma API...")
     try:
