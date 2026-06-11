@@ -18,6 +18,13 @@ def _esc(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+def _odds_summary(market: dict) -> str:
+    """Current odds of all outcomes, e.g. 'Yes 72% / No 28%'."""
+    outcomes = market.get("outcomes") or []
+    top = sorted(outcomes, key=lambda o: o["price"], reverse=True)[:4]
+    return " / ".join(f"{_esc(o['name'])} {o['price'] * 100:.0f}%" for o in top)
+
+
 def format_message(market: dict, outcome: dict, old_price: float, alert_type: str) -> str:
     """Build HTML-formatted Telegram message."""
     title = _esc(market.get("title", ""))
@@ -53,6 +60,10 @@ def format_message(market: dict, outcome: dict, old_price: float, alert_type: st
         f"Liquidity:  <b>${liq:,.0f}</b>",
     ]
 
+    odds = _odds_summary(market)
+    if odds:
+        lines.append(f"Thị trường hiện tại: <b>{odds}</b>")
+
     if end_date:
         lines.append(f"Closes: <b>{end_date}</b>")
 
@@ -68,10 +79,15 @@ def format_trade_alert(market: dict, trade: dict, outcome_name: str) -> str:
     question = _esc(market.get("question", ""))
     size = float(trade.get("size") or 0)
     price = float(trade.get("price") or 0)
+    usd = float(trade.get("usd_value") or size * price)
     side = str(trade.get("side") or "?").upper()
     outcome_name = _esc(outcome_name)
     url = market.get("url", "")
     vol = market.get("volume24hr") or 0
+    who = _esc(str(trade.get("pseudonym") or str(trade.get("proxyWallet") or "")[:10] or "?"))
+
+    # BUY Yes = whale tin Yes; SELL Yes = whale chống Yes
+    stance = "TIN" if side == "BUY" else "CHỐNG" if side == "SELL" else "?"
 
     lines = [
         "POLYMARKET - LARGE BET DETECTED",
@@ -82,10 +98,14 @@ def format_trade_alert(market: dict, trade: dict, outcome_name: str) -> str:
         lines.append(f"<i>{question}</i>")
     lines += [
         "",
-        f"Bet: <b>{side} {outcome_name}</b>  @{price * 100:.0f}%",
-        f"Size: <b>${size:,.0f}</b>",
+        f"Bet: <b>{side} {outcome_name}</b>  @{price * 100:.0f}%  ({stance} {outcome_name})",
+        f"Giá trị: <b>${usd:,.0f}</b>  ({size:,.0f} shares)",
+        f"Trader: <b>{who}</b>",
         f"Volume 24h: <b>${vol:,.0f}</b>",
     ]
+    odds = _odds_summary(market)
+    if odds:
+        lines.append(f"Thị trường hiện tại: <b>{odds}</b>")
     if url:
         lines.append(f"\n<a href=\"{url}\">Xem trên Polymarket</a>")
     return "\n".join(lines)
@@ -120,10 +140,12 @@ def send_trade_alert(market: dict, trade: dict, outcome_name: str) -> None:
     status = "OK" if ok else "TELEGRAM_FAIL"
     log_to_file(text)
     size = float(trade.get("size") or 0)
+    price = float(trade.get("price") or 0)
+    usd = float(trade.get("usd_value") or size * price)
     side = str(trade.get("side") or "?").upper()
     print(
         f"[TRADE {status}] {market['title'][:50]} | "
-        f"{side} {outcome_name[:20]} | ${size:,.0f}"
+        f"{side} {outcome_name[:20]} | ${usd:,.0f}"
     )
 
 

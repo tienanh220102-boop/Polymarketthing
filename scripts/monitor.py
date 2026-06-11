@@ -95,12 +95,15 @@ def run_once() -> int:
             trades = polymarket.fetch_large_trades(market["condition_id"], MIN_TRADE_SIZE)
             time.sleep(0.2)
             for trade in trades:
-                trade_id = str(trade.get("id", ""))
-                if not trade_id or store.is_trade_seen(trade_id):
-                    continue
-                outcome_name = polymarket.get_outcome_name(
-                    market, str(trade.get("asset_id", ""))
+                # Data API has no `id` field; tx hash + asset + size identifies a fill
+                trade_id = (
+                    f"{trade.get('transactionHash', '')}"
+                    f":{str(trade.get('asset', ''))[:16]}"
+                    f":{trade.get('size', '')}"
                 )
+                if trade_id == "::" or store.is_trade_seen(trade_id):
+                    continue
+                outcome_name = str(trade.get("outcome") or "?")
                 alert.send_trade_alert(market, trade, outcome_name)
                 store.mark_trade_seen(trade_id, market["event_id"])
                 alerts_sent += 1
