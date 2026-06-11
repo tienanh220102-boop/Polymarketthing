@@ -41,5 +41,5 @@ jobs:
           MIN_LIQUIDITY: '10000'
           TOP_N_MARKETS: '20'
           ALERT_COOLDOWN_HOURS: '2'
-          MIN_TRADE_SIZE: '5000'
+          MIN_TRADE_SIZE: '50000'
         run: python scripts/monitor.py --once

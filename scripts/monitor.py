@@ -46,7 +46,7 @@ PRICE_THRESHOLD = float(os.environ.get("PRICE_CHANGE_THRESHOLD", "0.10"))
 MIN_LIQUIDITY = float(os.environ.get("MIN_LIQUIDITY", "10000"))
 TOP_N = int(os.environ.get("TOP_N_MARKETS", "20"))
 COOLDOWN_HOURS = int(os.environ.get("ALERT_COOLDOWN_HOURS", "2"))
-MIN_TRADE_SIZE = float(os.environ.get("MIN_TRADE_SIZE", "5000"))
+MIN_TRADE_SIZE = float(os.environ.get("MIN_TRADE_SIZE", "50000"))
 
 
 # ── Core monitoring logic ────────────────────────────────────────────────────
